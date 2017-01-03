@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 )
 
@@ -70,22 +71,10 @@ type Exporter struct {
 	totalScrapes      prometheus.Counter
 	jsonParseFailures prometheus.Counter
 	gaugeMetrics      map[int]prometheus.Gauge
-	counterVecMetrics map[int]*prometheus.CounterVec
+	counterMetrics    map[int]*prometheus.Desc
 	gaugeDefs         []gaugeDefinition
-	counterVecDefs    []counterVecDefinition
+	counterDefs       []counterDefinition
 	client            *http.Client
-}
-
-func newCounterVecMetric(serverType, metricName, docString string, labelNames []string) *prometheus.CounterVec {
-	return prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: serverType,
-			Name:      metricName,
-			Help:      docString,
-		},
-		labelNames,
-	)
 }
 
 func newGaugeMetric(serverType, metricName, docString string) prometheus.Gauge {
@@ -102,29 +91,42 @@ func newGaugeMetric(serverType, metricName, docString string) prometheus.Gauge {
 // NewExporter returns an initialized Exporter.
 func NewExporter(apiKey, serverType string, hostURL *url.URL) *Exporter {
 	var gaugeDefs []gaugeDefinition
-	var counterVecDefs []counterVecDefinition
+	var counterDefs []counterDefinition
 
 	gaugeMetrics := make(map[int]prometheus.Gauge)
-	counterVecMetrics := make(map[int]*prometheus.CounterVec)
+	counterMetrics := make(map[int]*prometheus.Desc)
 
 	switch serverType {
 	case "recursor":
 		gaugeDefs = recursorGaugeDefs
-		counterVecDefs = recursorCounterVecDefs
+		counterDefs = recursorCounterDefs
 	case "authoritative":
 		gaugeDefs = authoritativeGaugeDefs
-		counterVecDefs = authoritativeCounterVecDefs
+		counterDefs = authoritativeCounterDefs
 	case "dnsdist":
 		gaugeDefs = dnsdistGaugeDefs
-		counterVecDefs = dnsdistCounterVecDefs
+		counterDefs = dnsdistCounterDefs
 	}
 
 	for _, def := range gaugeDefs {
 		gaugeMetrics[def.id] = newGaugeMetric(serverType, def.name, def.desc)
 	}
 
-	for _, def := range counterVecDefs {
-		counterVecMetrics[def.id] = newCounterVecMetric(serverType, def.name, def.desc, []string{def.label})
+	for _, def := range counterDefs {
+		labels := make([]string, 0, len(def.labelMap))
+		for _, l := range def.labelMap {
+			 labels = append(labels, l)
+		}
+		counterMetrics[def.id] = prometheus.NewDesc(
+						prometheus.BuildFQName(
+							def.label,
+							serverType,
+							def.name,
+						),
+						def.desc,
+						labels,
+						nil,
+					)
 	}
 
 	return &Exporter{
@@ -150,17 +152,17 @@ func NewExporter(apiKey, serverType string, hostURL *url.URL) *Exporter {
 			Help:      "Number of errors while parsing PowerDNS JSON stats.",
 		}),
 		gaugeMetrics:      gaugeMetrics,
-		counterVecMetrics: counterVecMetrics,
+		counterMetrics:    counterMetrics,
 		gaugeDefs:         gaugeDefs,
-		counterVecDefs:    counterVecDefs,
+		counterDefs:       counterDefs,
 	}
 }
 
 // Describe describes all the metrics ever exported by the PowerDNS exporter. It
 // implements prometheus.Collector.
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
-	for _, m := range e.counterVecMetrics {
-		m.Describe(ch)
+	for _, m := range e.counterMetrics {
+		ch <- m
 	}
 	for _, m := range e.gaugeMetrics {
 		ch <- m.Desc()
@@ -179,12 +181,10 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
-	e.resetMetrics()
-	statsMap := e.setMetrics(jsonStats)
 	ch <- e.up
 	ch <- e.totalScrapes
 	ch <- e.jsonParseFailures
-	e.collectMetrics(ch, statsMap)
+	e.collectMetrics(ch, jsonStats)
 }
 
 func (e *Exporter) scrape(jsonStats chan<- []StatsEntry) {
@@ -207,32 +207,8 @@ func (e *Exporter) scrape(jsonStats chan<- []StatsEntry) {
 	jsonStats <- data
 }
 
-func (e *Exporter) resetMetrics() {
-	for _, m := range e.counterVecMetrics {
-		m.Reset()
-	}
-}
-
-func (e *Exporter) collectMetrics(ch chan<- prometheus.Metric, statsMap map[string]float64) {
-	for _, m := range e.counterVecMetrics {
-		m.Collect(ch)
-	}
-	for _, m := range e.gaugeMetrics {
-		ch <- m
-	}
-
-	if e.ServerType == "recursor" {
-		h, err := makeRecursorRTimeHistogram(statsMap)
-		if err != nil {
-			log.Errorf("Could not create response time histogram: %v", err)
-			return
-		}
-		ch <- h
-	}
-}
-
-func (e *Exporter) setMetrics(jsonStats <-chan []StatsEntry) (statsMap map[string]float64) {
-	statsMap = make(map[string]float64)
+func (e *Exporter) collectMetrics(ch chan<- prometheus.Metric, jsonStats <-chan []StatsEntry) {
+	statsMap := make(map[string]float64)
 	stats := <-jsonStats
 	for _, s := range stats {
 		statsMap[s.Name] = s.Value
@@ -254,17 +230,25 @@ func (e *Exporter) setMetrics(jsonStats <-chan []StatsEntry) (statsMap map[strin
 		}
 	}
 
-	for _, def := range e.counterVecDefs {
+	for _, def := range e.counterDefs {
 		for key, label := range def.labelMap {
 			if value, ok := statsMap[key]; ok {
-				e.counterVecMetrics[def.id].WithLabelValues(label).Set(value)
+				 ch <- prometheus.MustNewConstMetric(e.counterMetrics[def.id], prometheus.CounterValue, float64(value), label)
 			} else {
 				log.Errorf("Expected PowerDNS stats key not found: %s", key)
 				e.jsonParseFailures.Inc()
 			}
 		}
 	}
-	return
+
+	if e.ServerType == "recursor" {
+		h, err := makeRecursorRTimeHistogram(statsMap)
+		if err != nil {
+			log.Errorf("Could not create response time histogram: %v", err)
+			return
+		}
+		ch <- h
+	}
 }
 
 func getServerInfo(hostURL *url.URL, apiKey string) (*ServerInfo, error) {
@@ -336,7 +320,7 @@ func main() {
 	prometheus.MustRegister(exporter)
 
 	log.Infof("Starting Server: %s", *listenAddress)
-	http.Handle(*metricsPath, prometheus.Handler())
+	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
              <head><title>PowerDNS Exporter</title></head>
