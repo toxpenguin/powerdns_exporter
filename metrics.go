@@ -35,11 +35,11 @@ var (
 	}
 
 	rTimeLabelMap = map[string]string{
-		"answers0-1":       "0-1ms",
-		"answers1-10":      "1-10ms",
-		"answers10-100":    "10-100ms",
-		"answers100-1000":  "100-1000ms",
-		"answers-slow":     ">1000ms",
+		"answers0-1":       "0_1ms",
+		"answers1-10":      "1_10ms",
+		"answers10-100":    "10_100ms",
+		"answers100-1000":  "100_1000ms",
+		"answers-slow":     "over_1000ms",
 	}
 
 	rCodeLabelMap = map[string]string{
@@ -49,19 +49,19 @@ var (
 	}
 
 	exceptionsLabelMap = map[string]string{
-		"resource-limits":     "resource-limit",
-		"over-capacity-drops": "over-capacity-drop",
-		"unreachables":        "ns-unreachable",
-		"outgoing-timeouts":   "outgoing-timeout",
+		"resource-limits":     "resource_limit",
+		"over-capacity-drops": "over_capacity_drop",
+		"unreachables":        "ns_unreachable",
+		"outgoing-timeouts":   "outgoing_timeout",
 	}
 )
 
 // PowerDNS recursor metrics definitions
 var (
 	recursorGaugeDefs = []gaugeDefinition{
-		gaugeDefinition{1, "latency_average_seconds", "Exponential moving average of question-to-answer latency.", "qa-latency"},
-		gaugeDefinition{2, "concurrent_queries", "Number of concurrent queries.", "concurrent-queries"},
-		gaugeDefinition{3, "cache_size", "Number of entries in the cache.", "cache-entries"},
+		gaugeDefinition{1, "latency_average_seconds", "Exponential moving average of question-to-answer latency.", "qa_latency"},
+		gaugeDefinition{2, "concurrent_queries", "Number of concurrent queries.", "concurrent_queries"},
+		gaugeDefinition{3, "cache_size", "Number of entries in the cache.", "cache_entries"},
 	}
 
 	recursorCounterDefs = []counterDefinition{
@@ -108,7 +108,7 @@ var (
 		},
 		counterDefinition{
 			4, "update_queries_total", "Total number of DNS update queries by status.", "status",
-			map[string]string{"dnsupdate-answers": "answered", "dnsupdate-changes": "applied", "dnsupdate-queries": "requested", "dnsupdate-refused": "refused"},
+			map[string]string{"dnsupdate-answers": "answered", "dnsupdate-changes": "applied", "dnsupdate_queries": "requested", "dnsupdate-refused": "refused"},
 		},
 		counterDefinition{
 			5, "packet_cache_lookups_total", "Total number of packet-cache lookups by result.", "result",
@@ -120,7 +120,7 @@ var (
 		},
 		counterDefinition{
 			7, "exceptions_total", "Total number of exceptions by error.", "error",
-			map[string]string{"servfail-packets": "servfail", "timedout-questions": "timeout", "udp-recvbuf-errors": "recvbuf-error", "udp-sndbuf-errors": "sndbuf-error"},
+			map[string]string{"servfail-packets": "servfail", "timedout-questions": "timeout", "udp-recvbuf-errors": "recvbuf_error", "udp-sndbuf-errors": "sndbuf_error"},
 		},
 	}
 )
