@@ -113,18 +113,14 @@ func NewExporter(apiKey, serverType string, hostURL *url.URL) *Exporter {
        }
 
         for _, def := range counterDefs {
-                labels := make([]string, 0, len(def.labelMap))
-                for _, l := range def.labelMap {
-                        labels = append(labels, l)
-                }
                 counterMetrics[def.id] = prometheus.NewDesc(
                                                  prometheus.BuildFQName(
-                                                         def.label,
+                                                         namespace,
                                                          serverType,
                                                          def.name,
                                                  ),
                                                  def.desc,
-                                                 labels,
+                                                 []string{def.label},
                                                  nil,
                                          )
         }
