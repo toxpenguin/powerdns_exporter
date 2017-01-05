@@ -133,7 +133,7 @@ var (
                                           "tcp4-queries": "tcp4",
                                           "tcp6-queries": "tcp6",
                                           "udp-queries": "udp",
-                                          "udp4-queries": "udp",
+                                          "udp4-queries": "udp4",
                                           "udp6-queries": "udp6"},
                 },
                 counterDefinition{
@@ -142,7 +142,7 @@ var (
                                           "tcp4-answers": "tcp4",
                                           "tcp6-answers": "tcp6",
                                           "udp-answers": "udp",
-                                          "udp4-answers": "udp",
+                                          "udp4-answers": "udp4",
                                           "udp6-answers": "udp6"},
                 },
                 counterDefinition{
@@ -151,7 +151,7 @@ var (
                                           "tcp4-answers-bytes": "tcp4",
                                           "tcp6-answers-bytes": "tcp6",
                                           "udp-answers-bytes": "udp",
-                                          "udp4-answers-bytes": "udp",
+                                          "udp4-answers-bytes": "udp4",
                                           "udp6-answers-bytes": "udp6"},
                 },
                 counterDefinition{
