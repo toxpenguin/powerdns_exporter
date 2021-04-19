@@ -6,7 +6,8 @@
 
 Periodically scrapes metrics via the [PowerDNS HTTP-API](https://doc.powerdns.com/md/httpapi/README/) and exports them via HTTP/JSON for consumption by Prometheus.
 
-#### The following PowerDNS products are supported
+## The following PowerDNS products are supported
+
 * [Authoritative Server](https://www.powerdns.com/auth.html)
 * [Recursor](https://www.powerdns.com/recursor.html)
 * [Dnsdist](http://dnsdist.org/) (coming soon)
@@ -25,15 +26,19 @@ api-key | PowerDNS API Key | `-`
 The `api-url` flag value should be passed in this format:
 
 * PowerDNS server/recursor 3.x: `http://<HOST>:<API-PORT>/`
-* PowerDNS server/recursor 4.x: `http://<HOST>:<API-PORT>/api/v1`
+* PowerDNS server/recursor 4.x: `http://<HOST>:<API-PORT>/api/v1/`
 
-## Installation
+## Build powerdns_exporter
 
 Typical way of installing in Go should work.
 
-```
-go install
-```
+        go mod init
+        go mod tidy
+        make
+
+Specify with golang version, os and arch
+
+        GO_VERSION=1.16.2 GOOS=linux GOARCH=amd64 make
 
 A Makefile is provided in case you find a need for it.
 
@@ -43,18 +48,14 @@ A Makefile is provided in case you find a need for it.
 
 Then run the exporter like this:
 
-```bash
-go run powerdns_exporter api-url="http://<HOST>:<API-PORT>/" -api-key="<YOUR_API_KEY>"
-```
+        go run powerdns_exporter api-url="http://<HOST>:<API-PORT>/" -api-key="<YOUR_API_KEY>"
 
 Show help:
 
-```bash
-go run powerdns_exporter --help
-```
+        go run powerdns_exporter --help
 
 ## Docker
 
 To run the PowerDNS exporter as a Docker container, run:
 
-    $ docker run -p 9120:9120 janeczku/powerdns-exporter -api-url="http://<HOST>:<API-PORT>/" -api-key="<YOUR_API_KEY>"
+        $ docker run -p 9120:9120 janeczku/powerdns-exporter -api-url="http://<HOST>:<API-PORT>/" -api-key="<YOUR_API_KEY>"
